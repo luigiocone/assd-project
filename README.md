@@ -1,13 +1,17 @@
 # assd-project
 Unisannio project for "Architetture e sistemi software distribuiti"
 # Usage
+Run an MQTT broker (supposing artemis in the following)
 ```
-mvn compile
-java -cp target/classes it.unisannio.group8.App
+# Create a broker allowing non authenticated connections (only once)
+artemis-dir/bin/artemis create --allow-anonymous assd-broker
+
+# Run the broker
+artemis-dir/bin/artemis/assd-broker/bin/artemis run
 ```
 
-### JAR
+Run the application
 ```
-mvn package
-java -jar target/assd-project-1.0-SNAPSHOT.jar
+mvn compile
+mvn exec:java
 ```
