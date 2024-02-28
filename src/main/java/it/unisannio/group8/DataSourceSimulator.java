@@ -10,14 +10,13 @@ import java.time.temporal.ChronoUnit;
 
 public class DataSourceSimulator extends Thread {
     private final static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
-    private final String brokerHost;
     private final String topic;
     private final String samplesPath;
     private final float rate;
-    private BlockingConnection connection;
+    private final BlockingConnection connection;
 
-    public DataSourceSimulator(String brokerHost, String topic, String samplesPath, float rate) {
-        this.brokerHost = brokerHost;
+    public DataSourceSimulator(BlockingConnection connection, String topic, String samplesPath, float rate) {
+        this.connection = connection;
         this.topic = topic;
         this.samplesPath = samplesPath;
         this.rate = (rate > 0) ? rate : 1f;
@@ -27,17 +26,15 @@ public class DataSourceSimulator extends Thread {
     public void run() {
         try {
             // Init connection with broker
-            MQTT mqtt = new MQTT();
-            mqtt.setHost(brokerHost);
-            connection = mqtt.blockingConnection();
-            connection.connect();
+            if (!connection.isConnected())
+                connection.connect();
 
             // Reading the first sample from the samples file
             BufferedReader br = new BufferedReader(new FileReader(samplesPath));
             String line = br.readLine();
             if (line == null)
                 return;
-            send(line);
+            this.send(line);
             LocalDateTime curr = LocalDateTime.parse(line, FORMATTER);
 
             // Read each line and simulate the inter-arrivals
@@ -55,8 +52,10 @@ public class DataSourceSimulator extends Thread {
     }
 
     private void checkSleep(LocalDateTime prev, LocalDateTime curr) throws InterruptedException {
-        long diff = ChronoUnit.MILLIS.between(prev, curr);
-        long scaled = (long) (diff / rate);
+        long millis = ChronoUnit.MILLIS.between(prev, curr);
+        long scaled = (long) (millis / rate);
+        if (scaled <= 0)
+            return;
         System.out.println("[SOURCE] Waiting " + scaled + " ms...");
         Thread.sleep(scaled);
     }

@@ -19,19 +19,23 @@ public class Main {
         final String samplesPath = prop.getProperty("samples");
         final String topic = prop.getProperty("topic");
 
-        new StubSubscriber(brokerHost, topic).start();
+        MQTT mqtt = new MQTT();
+        mqtt.setHost(brokerHost);
+
+        // Starting subscriber first
+        new StubSubscriber(mqtt.blockingConnection(), topic).start();
         Thread.sleep(1000);
-        new DataSourceSimulator(brokerHost, topic, samplesPath, 2.5f).start();
+        new DataSourceSimulator(mqtt.blockingConnection(), topic, samplesPath, 2.5f).start();
     }
 }
 
 // Temporary class. It only shows messages on passed topic
 class StubSubscriber extends Thread {
     final String topic;
-    final String brokerHost;
+    final BlockingConnection connection;
 
-    public StubSubscriber(String brokerHost, String topic) {
-        this.brokerHost = brokerHost;
+    public StubSubscriber(BlockingConnection connection, String topic) {
+        this.connection = connection;
         this.topic = topic;
     }
 
@@ -39,10 +43,8 @@ class StubSubscriber extends Thread {
     public void run() {
         try {
             // Connect to broker
-            MQTT mqtt = new MQTT();
-            mqtt.setHost(brokerHost);
-            BlockingConnection connection = mqtt.blockingConnection();
-            connection.connect();
+            if (!connection.isConnected())
+                connection.connect();
 
             // Subscribe to topic
             Topic[] topics = { new Topic(topic, QoS.AT_MOST_ONCE) };
