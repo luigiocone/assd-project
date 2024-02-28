@@ -10,12 +10,14 @@ import java.time.temporal.ChronoUnit;
 
 public class DataSourceSimulator extends Thread {
     private final static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
+    private final String brokerHost;
     private final String topic;
     private final String samplesPath;
     private final float rate;
     private BlockingConnection connection;
 
-    public DataSourceSimulator(String topic, String samplesPath, float rate) throws Exception {
+    public DataSourceSimulator(String brokerHost, String topic, String samplesPath, float rate) {
+        this.brokerHost = brokerHost;
         this.topic = topic;
         this.samplesPath = samplesPath;
         this.rate = (rate > 0) ? rate : 1f;
@@ -26,7 +28,7 @@ public class DataSourceSimulator extends Thread {
         try {
             // Init connection with broker
             MQTT mqtt = new MQTT();
-            mqtt.setHost("tcp://localhost:1883");
+            mqtt.setHost(brokerHost);
             connection = mqtt.blockingConnection();
             connection.connect();
 
@@ -48,7 +50,7 @@ public class DataSourceSimulator extends Thread {
                 line = br.readLine();
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 

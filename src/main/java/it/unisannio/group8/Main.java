@@ -2,23 +2,36 @@ package it.unisannio.group8;
 
 import org.fusesource.mqtt.client.*;
 
+import java.io.*;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 public class Main {
+    final static String PROPERTIES_PATH = "src/main/resources/config.properties";
+
     public static void main(String[] args) throws Exception {
-        String path = "src/main/resources/samples.txt";
-        String topic = "rfid/0";
-        new StubSubscriber(topic).start();
+        // Reading properties
+        BufferedReader br = new BufferedReader(new FileReader(PROPERTIES_PATH));
+        Properties prop = new Properties();
+        prop.load(br);
+
+        final String brokerHost = prop.getProperty("host.broker");
+        final String samplesPath = prop.getProperty("samples");
+        final String topic = prop.getProperty("topic");
+
+        new StubSubscriber(brokerHost, topic).start();
         Thread.sleep(1000);
-        new DataSourceSimulator(topic, path, 2.5f).start();
+        new DataSourceSimulator(brokerHost, topic, samplesPath, 2.5f).start();
     }
 }
 
 // Temporary class. It only shows messages on passed topic
 class StubSubscriber extends Thread {
-    String topic;
+    final String topic;
+    final String brokerHost;
 
-    public StubSubscriber(String topic) {
+    public StubSubscriber(String brokerHost, String topic) {
+        this.brokerHost = brokerHost;
         this.topic = topic;
     }
 
@@ -27,7 +40,7 @@ class StubSubscriber extends Thread {
         try {
             // Connect to broker
             MQTT mqtt = new MQTT();
-            mqtt.setHost("tcp://localhost:1883");
+            mqtt.setHost(brokerHost);
             BlockingConnection connection = mqtt.blockingConnection();
             connection.connect();
 
@@ -43,8 +56,7 @@ class StubSubscriber extends Thread {
                 msg = connection.receive(15, TimeUnit.SECONDS);
             }
         } catch (Exception e) {
-            e.printStackTrace();
-            System.exit(1);
+            throw new RuntimeException(e);
         }
         System.exit(0);
     }
