@@ -1,6 +1,6 @@
 package it.unisannio.group8;
 
-import org.fusesource.mqtt.client.*;
+import it.unisannio.group8.channels.Channel;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -10,14 +10,12 @@ import java.time.temporal.ChronoUnit;
 
 public class DataSourceSimulator extends Thread {
     private final static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
-    private final String topic;
     private final String samplesPath;
     private final float rate;
-    private final BlockingConnection connection;
+    private final Channel channel;
 
-    public DataSourceSimulator(BlockingConnection connection, String topic, String samplesPath, float rate) {
-        this.connection = connection;
-        this.topic = topic;
+    public DataSourceSimulator(Channel channel, String samplesPath, float rate) {
+        this.channel = channel;
         this.samplesPath = samplesPath;
         this.rate = (rate > 0) ? rate : 1f;
     }
@@ -25,10 +23,6 @@ public class DataSourceSimulator extends Thread {
     @Override
     public void run() {
         try {
-            // Init connection with broker
-            if (!connection.isConnected())
-                connection.connect();
-
             // Reading the first sample from the samples file
             BufferedReader br = new BufferedReader(new FileReader(samplesPath));
             String line = br.readLine();
@@ -61,7 +55,7 @@ public class DataSourceSimulator extends Thread {
     }
 
     private void send(String msg) throws Exception {
-        connection.publish(topic, msg.getBytes(), QoS.AT_MOST_ONCE, false);
+        this.channel.send(msg.getBytes());
         System.out.println("[SOURCE] Published: " + msg);
     }
 }

@@ -1,5 +1,8 @@
 package it.unisannio.group8;
 
+import it.unisannio.group8.channels.Channel;
+import it.unisannio.group8.channels.SimplePublisher;
+import it.unisannio.group8.channels.SimpleSubscriber;
 import org.fusesource.mqtt.client.*;
 
 import java.io.*;
@@ -23,43 +26,12 @@ public class Main {
         mqtt.setHost(brokerHost);
 
         // Starting subscriber first
-        new StubSubscriber(mqtt.blockingConnection(), topic).start();
+        Channel sub = new SimpleSubscriber(topic, mqtt.blockingConnection());
+        new EdgeNode(sub).start();
+
         Thread.sleep(1000);
-        new DataSourceSimulator(mqtt.blockingConnection(), topic, samplesPath, 2.5f).start();
-    }
-}
 
-// Temporary class. It only shows messages on passed topic
-class StubSubscriber extends Thread {
-    final String topic;
-    final BlockingConnection connection;
-
-    public StubSubscriber(BlockingConnection connection, String topic) {
-        this.connection = connection;
-        this.topic = topic;
-    }
-
-    @Override
-    public void run() {
-        try {
-            // Connect to broker
-            if (!connection.isConnected())
-                connection.connect();
-
-            // Subscribe to topic
-            Topic[] topics = { new Topic(topic, QoS.AT_MOST_ONCE) };
-            connection.subscribe(topics);
-
-            // Timeout after 15 seconds
-            Message msg = connection.receive(15, TimeUnit.SECONDS);
-            while (msg != null) {
-                String payload = new String(msg.getPayload());
-                System.out.println("[STUB] Received: " + payload);
-                msg = connection.receive(15, TimeUnit.SECONDS);
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        System.exit(0);
+        Channel pub = new SimplePublisher(topic, mqtt.blockingConnection());
+        new DataSourceSimulator(pub, samplesPath, 2.5f).start();
     }
 }
