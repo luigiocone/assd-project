@@ -1,6 +1,7 @@
 package it.unisannio.group8;
 
 import it.unisannio.group8.channels.*;
+import it.unisannio.group8.transmission.*;
 import org.fusesource.mqtt.client.MQTT;
 
 import java.io.BufferedReader;
@@ -18,17 +19,48 @@ public class Main {
 
         final String brokerHost = prop.getProperty("host.broker");
         final String samplesPath = prop.getProperty("samples");
-        final String topic = prop.getProperty("topic");
+        final String rfidTopic = prop.getProperty("rfid.topic");
+        final String cloudTopic = prop.getProperty("cloud.topic");
 
+        // MQTT properties
         MQTT mqtt = new MQTT();
         mqtt.setHost(brokerHost);
 
-        // Starting subscriber first
-        AsyncSubscriber sub = new AsyncSubscriber(topic, mqtt.callbackConnection());
-        new EdgeNode(sub).start();
+        // Start working threads (edge node first)
+        startEdgeNode(rfidTopic, cloudTopic, mqtt);
+
+        // Start a stub (only to check what will be sent on the cloudTopic)
+        startSubscriberStub(cloudTopic, mqtt);
+
         Thread.sleep(1000);
 
+        startDataSource(rfidTopic, mqtt, samplesPath);
+    }
+
+    static void startSubscriberStub(String topic, MQTT mqtt) {
+        // Debug purposes
+        AsyncSubscriber sub = new AsyncSubscriber(topic, mqtt.callbackConnection());
+        sub.setOnRecvCallback(new Callbacks.EmptyCallback<byte[]>() {
+            @Override
+            public void onSuccess(byte[] payload) {
+                String msg = new String(payload);
+                System.out.println("[STUB] Received: " + msg);
+            }
+        });
+
+        sub.init();
+    }
+
+    static void startEdgeNode(String rfidTopic, String cloudTopic, MQTT mqtt) {
+        AsyncPublisher pub = new AsyncPublisher(cloudTopic, mqtt.callbackConnection());
+        AsyncSubscriber sub = new AsyncSubscriber(rfidTopic, mqtt.callbackConnection());
+        TransmissionStrategy strategy = new ImmediateTransmissionStrategy();
+
+        new EdgeNode(pub, sub, strategy).start();
+    }
+
+    static void startDataSource(String topic, MQTT mqtt, String filePath) {
         AsyncChannel pub = new AsyncPublisher(topic, mqtt.callbackConnection());
-        new DataSourceSimulator(pub, samplesPath, 2.5f).start();
+        new DataSourceSimulator(pub, filePath, 2.5f).start();
     }
 }

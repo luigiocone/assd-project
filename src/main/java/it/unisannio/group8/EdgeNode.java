@@ -2,24 +2,39 @@ package it.unisannio.group8;
 
 import it.unisannio.group8.channels.AsyncChannel;
 import it.unisannio.group8.channels.Callbacks;
-import org.fusesource.mqtt.client.Callback;
+import it.unisannio.group8.transmission.TransmissionStrategy;
 
 public class EdgeNode {
-    private final AsyncChannel channel;
-    private final Callback<byte[]> printCallback = new Callbacks.EmptyCallback<byte[]>() {
-        @Override
-        public void onSuccess(byte[] bytes) {
-            String msg = new String(bytes);
-            System.out.println("[STUB] Received: " + msg);
-        }
-    };
+    private final AsyncChannel sender;
+    private final AsyncChannel receiver;
+    private final TransmissionStrategy strategy;
 
-    public EdgeNode(AsyncChannel channel) {
-        this.channel = channel;
-        this.channel.setOnRecvCallback(printCallback);
+    public EdgeNode(AsyncChannel sender, AsyncChannel receiver, TransmissionStrategy strategy) {
+        this.sender = sender;
+        this.receiver = receiver;
+        this.strategy = strategy;
     }
 
     public void start() {
-        this.channel.init();
+        // Edge node passes all the received messages to the strategy object
+        receiver.setOnRecvCallback(new Callbacks.EmptyCallback<byte[]>() {
+            @Override
+            public void onSuccess(byte[] payload) {
+                String msg = new String(payload);
+                System.out.println("[EDGE] Received: " + msg);
+                strategy.next(payload);
+            }
+        });
+
+        // Transmission strategy will send a byte array when needed
+        strategy.setCallback(new Callbacks.EmptyCallback<byte[]>() {
+            @Override
+            public void onSuccess(byte[] payload) {
+                sender.send(payload);
+            }
+        });
+
+        receiver.init();
+        sender.init();
     }
 }
