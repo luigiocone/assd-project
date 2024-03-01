@@ -1,13 +1,11 @@
 package it.unisannio.group8;
 
-import it.unisannio.group8.channels.Channel;
-import it.unisannio.group8.channels.SimplePublisher;
-import it.unisannio.group8.channels.SimpleSubscriber;
-import org.fusesource.mqtt.client.*;
+import it.unisannio.group8.channels.*;
+import org.fusesource.mqtt.client.MQTT;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 public class Main {
     final static String PROPERTIES_PATH = "src/main/resources/config.properties";
@@ -26,12 +24,11 @@ public class Main {
         mqtt.setHost(brokerHost);
 
         // Starting subscriber first
-        Channel sub = new SimpleSubscriber(topic, mqtt.blockingConnection());
+        AsyncSubscriber sub = new AsyncSubscriber(topic, mqtt.callbackConnection());
         new EdgeNode(sub).start();
-
         Thread.sleep(1000);
 
-        Channel pub = new SimplePublisher(topic, mqtt.blockingConnection());
+        AsyncChannel pub = new AsyncPublisher(topic, mqtt.callbackConnection());
         new DataSourceSimulator(pub, samplesPath, 2.5f).start();
     }
 }

@@ -1,27 +1,25 @@
 package it.unisannio.group8;
 
-import it.unisannio.group8.channels.Channel;
+import it.unisannio.group8.channels.AsyncChannel;
+import it.unisannio.group8.channels.Callbacks;
+import org.fusesource.mqtt.client.Callback;
 
-public class EdgeNode extends Thread {
-    private final Channel channel;
-
-    public EdgeNode(Channel channel) {
-        this.channel = channel;
-    }
-
-    @Override
-    public void run() {
-        try {
-            byte[] payload = channel.receive();
-            while (payload != null) {
-                String msg = new String(payload);
-                System.out.println("[STUB] Received: " + msg);
-                payload = channel.receive();
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+public class EdgeNode {
+    private final AsyncChannel channel;
+    private final Callback<byte[]> printCallback = new Callbacks.EmptyCallback<byte[]>() {
+        @Override
+        public void onSuccess(byte[] bytes) {
+            String msg = new String(bytes);
+            System.out.println("[STUB] Received: " + msg);
         }
-        System.exit(0);
+    };
+
+    public EdgeNode(AsyncChannel channel) {
+        this.channel = channel;
+        this.channel.setOnRecvCallback(printCallback);
     }
 
+    public void start() {
+        this.channel.init();
+    }
 }

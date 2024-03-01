@@ -1,6 +1,6 @@
 package it.unisannio.group8;
 
-import it.unisannio.group8.channels.Channel;
+import it.unisannio.group8.channels.AsyncChannel;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -12,9 +12,9 @@ public class DataSourceSimulator extends Thread {
     private final static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
     private final String samplesPath;
     private final float rate;
-    private final Channel channel;
+    private final AsyncChannel channel;
 
-    public DataSourceSimulator(Channel channel, String samplesPath, float rate) {
+    public DataSourceSimulator(AsyncChannel channel, String samplesPath, float rate) {
         this.channel = channel;
         this.samplesPath = samplesPath;
         this.rate = (rate > 0) ? rate : 1f;
@@ -23,15 +23,19 @@ public class DataSourceSimulator extends Thread {
     @Override
     public void run() {
         try {
-            // Reading the first sample from the samples file
+            channel.init();
+
+            // Read the first sample from the samples file
             BufferedReader br = new BufferedReader(new FileReader(samplesPath));
             String line = br.readLine();
-            if (line == null)
+            if (line == null) {
+                this.end();
                 return;
+            }
             this.send(line);
-            LocalDateTime curr = LocalDateTime.parse(line, FORMATTER);
 
-            // Read each line and simulate the inter-arrivals
+            // Read each line and simulate the inter-arrivals from the read timestamps
+            LocalDateTime curr = LocalDateTime.parse(line, FORMATTER);
             line = br.readLine();
             while (line != null) {
                 LocalDateTime prev = curr;
@@ -42,6 +46,8 @@ public class DataSourceSimulator extends Thread {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } finally {
+            this.end();
         }
     }
 
@@ -54,8 +60,13 @@ public class DataSourceSimulator extends Thread {
         Thread.sleep(scaled);
     }
 
-    private void send(String msg) throws Exception {
-        this.channel.send(msg.getBytes());
+    private void send(String msg) {
+        channel.send(msg.getBytes());
         System.out.println("[SOURCE] Published: " + msg);
+    }
+
+    private void end() {
+        channel.terminate();
+        System.out.println("[SOURCE] Terminated");
     }
 }
