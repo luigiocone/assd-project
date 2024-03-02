@@ -57,7 +57,7 @@ public class Main {
         AsyncPublisher pub = new AsyncPublisher(cloudTopic, mqtt.callbackConnection());
         AsyncSubscriber sub = new AsyncSubscriber(rfidTopic, mqtt.callbackConnection());
         //TransmissionStrategy strategy = new ImmediateTransmissionStrategy();
-        TransmissionStrategy strategy = new PeriodicTransmissionStrategy(LocalDateTime.now(), 5);
+        TransmissionStrategy strategy = new PeriodicTransmissionStrategy(LocalDateTime.now(), 5, 100);
 
         new EdgeNode(pub, sub, strategy).start();
     }

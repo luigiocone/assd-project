@@ -5,10 +5,7 @@ import org.fusesource.mqtt.client.Callback;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class PeriodicTransmissionStrategy implements TransmissionStrategy {
     private Callback<byte[]> callback;
@@ -16,15 +13,17 @@ public class PeriodicTransmissionStrategy implements TransmissionStrategy {
     private final long periodInSeconds;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private final ExecutorService threadPool = Executors.newCachedThreadPool();
+    private final ArrayList<byte[]> buffer;
 
-    // Shared variable
-    // TODO: A "producer-consumer circular array" could be more efficient
-    private final ArrayList<byte[]> buffer = new ArrayList<>();
+    // Shared variable. Handles producer-consumer problem by itself
+    private final BlockingQueue<byte[]> queue;
 
-    public PeriodicTransmissionStrategy(LocalDateTime startTime, long periodInSeconds) {
-        this.startTime = startTime;
+    public PeriodicTransmissionStrategy(LocalDateTime startTime, long periodInSeconds, int maxBufferSize) {
         //this.nextAlarm = startTime;
+        this.startTime = startTime;
         this.periodInSeconds = (periodInSeconds > 0) ? periodInSeconds : 1;
+        this.queue = new ArrayBlockingQueue<>(maxBufferSize);
+        this.buffer = new ArrayList<>(maxBufferSize);
     }
 
     @Override
@@ -41,9 +40,8 @@ public class PeriodicTransmissionStrategy implements TransmissionStrategy {
         //  it to another thread pool for processing."
         //  Study if "mqtt.blockingConnection" may be a better option
         threadPool.submit(() -> {
-            synchronized (buffer) {
-                buffer.add(payload);
-            }
+            // Blocking operation
+            queue.add(payload);
         });
     }
 
@@ -53,20 +51,16 @@ public class PeriodicTransmissionStrategy implements TransmissionStrategy {
     }
 
     private byte[] transformBuffer() {
-        // Copy the shared arraylist
-        ArrayList<byte[]> copy;
-        synchronized (buffer) {
-            copy = new ArrayList<>(buffer);
-            buffer.clear();
-        }
+        // Poll all stored elements from the shared queue
+        int elements = queue.drainTo(buffer);
 
-        if (copy.isEmpty())
+        if (elements == 0)
             return null;
 
         // TODO: Create a builder to allow different transformations
-        StringBuilder temp = new StringBuilder(new String(copy.get(0)));
-        for (int i = 1; i < copy.size(); i++) {
-            String str = new String(copy.get(i));
+        StringBuilder temp = new StringBuilder(new String(buffer.get(0)));
+        for (int i = 1; i < elements; i++) {
+            String str = new String(buffer.get(i));
             temp.append("\n").append(str);
         }
         return temp.toString().getBytes();
