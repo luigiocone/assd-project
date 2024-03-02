@@ -14,9 +14,12 @@ public class PeriodicTransmissionStrategy implements TransmissionStrategy {
     private Callback<byte[]> callback;
     private final LocalDateTime startTime;
     private final long periodInSeconds;
-    private final ArrayList<byte[]> buffer = new ArrayList<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private final ExecutorService threadPool = Executors.newCachedThreadPool();
+
+    // Shared variable
+    // TODO: A "producer-consumer circular array" could be more efficient
+    private final ArrayList<byte[]> buffer = new ArrayList<>();
 
     public PeriodicTransmissionStrategy(LocalDateTime startTime, long periodInSeconds) {
         this.startTime = startTime;
@@ -64,7 +67,7 @@ public class PeriodicTransmissionStrategy implements TransmissionStrategy {
         StringBuilder temp = new StringBuilder(new String(copy.get(0)));
         for (int i = 1; i < copy.size(); i++) {
             String str = new String(copy.get(i));
-            temp.append(",").append(str);
+            temp.append("\n").append(str);
         }
         return temp.toString().getBytes();
     }
