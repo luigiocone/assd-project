@@ -29,7 +29,7 @@ public class PeriodicTransmissionStrategy implements TransmissionStrategy {
     @Override
     public void init() {
         long initialDelay = ChronoUnit.SECONDS.between(LocalDateTime.now(), startTime);
-        scheduler.scheduleAtFixedRate(new SendAndWait(), initialDelay, periodInSeconds, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(new TransformAndWait(), initialDelay, periodInSeconds, TimeUnit.SECONDS);
     }
 
     @Override
@@ -66,7 +66,7 @@ public class PeriodicTransmissionStrategy implements TransmissionStrategy {
         return temp.toString().getBytes();
     }
 
-    class SendAndWait implements Runnable {
+    class TransformAndWait implements Runnable {
         @Override
         public void run() {
             // Compute and send all the collected info

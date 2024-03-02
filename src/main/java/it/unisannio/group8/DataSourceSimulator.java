@@ -9,13 +9,13 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 
 public class DataSourceSimulator extends Thread {
-    private final static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'");
+    private final static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private final String samplesPath;
     private final float rate;
-    private final AsyncChannel channel;
+    private final AsyncChannel sender;
 
-    public DataSourceSimulator(AsyncChannel channel, String samplesPath, float rate) {
-        this.channel = channel;
+    public DataSourceSimulator(AsyncChannel sender, String samplesPath, float rate) {
+        this.sender = sender;
         this.samplesPath = samplesPath;
         this.rate = (rate > 0) ? rate : 1f;
     }
@@ -23,32 +23,37 @@ public class DataSourceSimulator extends Thread {
     @Override
     public void run() {
         try {
-            channel.init();
+            sender.init();
 
             // Read the first sample from the samples file
             BufferedReader br = new BufferedReader(new FileReader(samplesPath));
             String line = br.readLine();
             if (line == null) {
-                this.end();
+                end();
                 return;
             }
-            this.send(line);
+            send(line);
 
             // Read each line and simulate the inter-arrivals from the read timestamps
-            LocalDateTime curr = LocalDateTime.parse(line, FORMATTER);
+            LocalDateTime curr = getDateTime(line);
             line = br.readLine();
             while (line != null) {
                 LocalDateTime prev = curr;
-                curr = LocalDateTime.parse(line, FORMATTER);
-                this.checkSleep(prev, curr);
-                this.send(line);
+                curr = getDateTime(line);
+                checkSleep(prev, curr);
+                send(line);
                 line = br.readLine();
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
-            this.end();
+            end();
         }
+    }
+
+    private LocalDateTime getDateTime(String line) {
+        String dt = line.split(",", 3)[1];
+        return LocalDateTime.parse(dt, FORMATTER);
     }
 
     private void checkSleep(LocalDateTime prev, LocalDateTime curr) throws InterruptedException {
@@ -61,12 +66,12 @@ public class DataSourceSimulator extends Thread {
     }
 
     private void send(String msg) {
-        channel.send(msg.getBytes());
+        sender.send(msg.getBytes());
         System.out.println("[SOURCE] Published: " + msg);
     }
 
     private void end() {
-        channel.terminate();
+        sender.terminate();
         System.out.println("[SOURCE] Terminated");
     }
 }

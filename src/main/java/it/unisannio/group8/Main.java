@@ -46,7 +46,7 @@ public class Main {
             @Override
             public void onSuccess(byte[] payload) {
                 String msg = new String(payload);
-                System.out.println("[STUB] Received: " + msg);
+                System.out.println("[CLOUD] Received: " + msg);
             }
         });
 
@@ -64,6 +64,6 @@ public class Main {
 
     static void startDataSource(String topic, MQTT mqtt, String filePath) {
         AsyncChannel pub = new AsyncPublisher(topic, mqtt.callbackConnection());
-        new DataSourceSimulator(pub, filePath, 1.5f).start();
+        new DataSourceSimulator(pub, filePath, 100f).start();
     }
 }
