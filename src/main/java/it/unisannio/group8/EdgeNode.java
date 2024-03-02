@@ -35,6 +35,7 @@ public class EdgeNode {
         });
 
         receiver.init();
+        strategy.init();
         sender.init();
     }
 }

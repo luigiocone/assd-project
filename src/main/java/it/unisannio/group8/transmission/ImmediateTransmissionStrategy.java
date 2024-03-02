@@ -6,8 +6,12 @@ public class ImmediateTransmissionStrategy implements TransmissionStrategy {
     private Callback<byte[]> callback;
 
     @Override
+    public void init() { }
+
+    @Override
     public void next(byte[] payload) {
-        callback.onSuccess(payload);
+        if (callback != null)
+            callback.onSuccess(payload);
     }
 
     @Override

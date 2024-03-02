@@ -6,6 +6,7 @@ import org.fusesource.mqtt.client.MQTT;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.time.LocalDateTime;
 import java.util.Properties;
 
 public class Main {
@@ -25,6 +26,7 @@ public class Main {
         // MQTT properties
         MQTT mqtt = new MQTT();
         mqtt.setHost(brokerHost);
+        // mqtt.setKeepAlive((short) 60);
 
         // Start working threads (edge node first)
         startEdgeNode(rfidTopic, cloudTopic, mqtt);
@@ -54,13 +56,14 @@ public class Main {
     static void startEdgeNode(String rfidTopic, String cloudTopic, MQTT mqtt) {
         AsyncPublisher pub = new AsyncPublisher(cloudTopic, mqtt.callbackConnection());
         AsyncSubscriber sub = new AsyncSubscriber(rfidTopic, mqtt.callbackConnection());
-        TransmissionStrategy strategy = new ImmediateTransmissionStrategy();
+        //TransmissionStrategy strategy = new ImmediateTransmissionStrategy();
+        TransmissionStrategy strategy = new PeriodicTransmissionStrategy(LocalDateTime.now(), 5);
 
         new EdgeNode(pub, sub, strategy).start();
     }
 
     static void startDataSource(String topic, MQTT mqtt, String filePath) {
         AsyncChannel pub = new AsyncPublisher(topic, mqtt.callbackConnection());
-        new DataSourceSimulator(pub, filePath, 2.5f).start();
+        new DataSourceSimulator(pub, filePath, 1.5f).start();
     }
 }
