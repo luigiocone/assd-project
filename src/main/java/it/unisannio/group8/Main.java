@@ -2,6 +2,8 @@ package it.unisannio.group8;
 
 import it.unisannio.group8.channels.*;
 import it.unisannio.group8.transmission.*;
+import it.unisannio.group8.transmission.bulk.BulkBuilder;
+import it.unisannio.group8.transmission.bulk.StringBulkBuilder;
 import org.fusesource.mqtt.client.MQTT;
 
 import java.io.BufferedReader;
@@ -20,6 +22,7 @@ public class Main {
 
         final String brokerHost = prop.getProperty("host.broker");
         final String samplesPath = prop.getProperty("samples");
+        final String fieldSeparator = prop.getProperty("fields.separator");
         final String rfidTopic = prop.getProperty("rfid.topic");
         final String cloudTopic = prop.getProperty("cloud.topic");
 
@@ -56,8 +59,11 @@ public class Main {
     static void startEdgeNode(String rfidTopic, String cloudTopic, MQTT mqtt) {
         AsyncPublisher pub = new AsyncPublisher(cloudTopic, mqtt.callbackConnection());
         AsyncSubscriber sub = new AsyncSubscriber(rfidTopic, mqtt.callbackConnection());
+        BulkBuilder<String> bb = new StringBulkBuilder("\n");
+
         //TransmissionStrategy strategy = new ImmediateTransmissionStrategy();
-        TransmissionStrategy strategy = new PeriodicTransmissionStrategy(LocalDateTime.now(), 5, 100);
+        TransmissionStrategy strategy =
+                new PeriodicTransmissionStrategy(LocalDateTime.now(), 5, 100, bb);
 
         new EdgeNode(pub, sub, strategy).start();
     }

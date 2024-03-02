@@ -1,5 +1,6 @@
 package it.unisannio.group8.transmission;
 
+import it.unisannio.group8.transmission.bulk.BulkBuilder;
 import org.fusesource.mqtt.client.Callback;
 
 import java.time.LocalDateTime;
@@ -11,6 +12,7 @@ public class PeriodicTransmissionStrategy implements TransmissionStrategy {
     private Callback<byte[]> callback;
     private final LocalDateTime startTime;
     private final long periodInSeconds;
+    private final BulkBuilder<String> bulkBuilder;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private final ExecutorService threadPool = Executors.newCachedThreadPool();
     private final ArrayList<byte[]> buffer;
@@ -18,10 +20,11 @@ public class PeriodicTransmissionStrategy implements TransmissionStrategy {
     // Shared variable. Handles producer-consumer problem by itself
     private final BlockingQueue<byte[]> queue;
 
-    public PeriodicTransmissionStrategy(LocalDateTime startTime, long periodInSeconds, int maxBufferSize) {
+    public PeriodicTransmissionStrategy(LocalDateTime startTime, long periodInSeconds, int maxBufferSize, BulkBuilder<String> bulkBuilder) {
         //this.nextAlarm = startTime;
         this.startTime = startTime;
         this.periodInSeconds = (periodInSeconds > 0) ? periodInSeconds : 1;
+        this.bulkBuilder = bulkBuilder;
         this.queue = new ArrayBlockingQueue<>(maxBufferSize);
         this.buffer = new ArrayList<>(maxBufferSize);
     }
@@ -57,13 +60,9 @@ public class PeriodicTransmissionStrategy implements TransmissionStrategy {
         if (elements == 0)
             return null;
 
-        // TODO: Create a builder to allow different transformations
-        StringBuilder temp = new StringBuilder(new String(buffer.get(0)));
-        for (int i = 1; i < elements; i++) {
-            String str = new String(buffer.get(i));
-            temp.append("\n").append(str);
-        }
-        return temp.toString().getBytes();
+        // Aggregate all payload into a bulk
+        String bulk = bulkBuilder.build(buffer.subList(0, elements));
+        return bulk.getBytes();
     }
 
     class TransformAndWait implements Runnable {
