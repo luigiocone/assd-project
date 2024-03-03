@@ -1,11 +1,15 @@
 package it.unisannio.group8;
 
 import it.unisannio.group8.channels.*;
+import it.unisannio.group8.model.DisposalSampleFactory;
 import it.unisannio.group8.transmission.*;
 import it.unisannio.group8.transmission.bulk.BulkBuilder;
+import it.unisannio.group8.transmission.bulk.JsonBulkBuilder;
 import it.unisannio.group8.transmission.bulk.StringBulkBuilder;
-import org.fusesource.mqtt.client.MQTT;
-import org.fusesource.mqtt.client.QoS;
+import org.eclipse.paho.client.mqttv3.IMqttAsyncClient;
+import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -19,7 +23,10 @@ import java.util.Properties;
 
 public class Main {
     final static String PROPERTIES_PATH = "src/main/resources/config.properties";
-    final static QoS DEFAULT_QOS = QoS.AT_MOST_ONCE;
+    final static int DEFAULT_EDGE_BUFFER_SIZE = 250;
+    final static int DEFAULT_QOS = 1; // AT_LEAST_ONCE
+
+    static String brokerHost;
 
     public static void main(String[] args) throws Exception {
         // Reading properties
@@ -27,16 +34,13 @@ public class Main {
         Properties prop = new Properties();
         prop.load(br);
 
-        final String brokerHost = prop.getProperty("host.broker");
+        brokerHost = prop.getProperty("host.broker");
         final String samplesDir = prop.getProperty("samples.dir");
         final String fieldSeparator = prop.getProperty("fields.separator");
         final String rfidTopic = prop.getProperty("rfid.topic");
         final String cloudTopic = prop.getProperty("cloud.topic");
 
-        // MQTT properties
-        MQTT mqtt = new MQTT();
-        mqtt.setHost(brokerHost);
-
+        // Checking the samples dir and its files
         List<String> fileNames = getSamplesFiles(samplesDir);
         System.out.println(fileNames.size() + " files found in " + samplesDir);
 
@@ -52,14 +56,14 @@ public class Main {
 
         // Start edge nodes
         System.out.print("Starting edge nodes... ");
-        for (String t: rfidTopics) {
-            startEdgeNode(t, cloudTopic, mqtt);
+        for (int i = 0; i < fileNames.size(); i++) {
+            startEdgeNode("EDGE" + i, rfidTopics.get(i), cloudTopic);
         }
         System.out.println("done.");
 
         // Start a stub (only to check what will be sent on the cloudTopic)
         System.out.print("Starting a subscriber stub... ");
-        startSubscriberStub(cloudTopic, mqtt);
+        startSubscriberStub("STUB", cloudTopic);
         System.out.println("done.");
 
         Thread.sleep(1000);
@@ -67,7 +71,7 @@ public class Main {
         // Start data sources
         System.out.print("Starting data sources... ");
         for (int i = 0; i < fileNames.size(); i++) {
-            startDataSource(rfidTopics.get(i), mqtt, fileNames.get(i));
+            startDataSource("SOURCE" + i, rfidTopics.get(i), fileNames.get(i));
         }
         System.out.println("done.");
     }
@@ -82,41 +86,46 @@ public class Main {
         for (File f: listOfFiles) {
             if (f.isFile()) {
                 names.add(f.getName());
-                // TODO: Delete break. Using only one file
-                break;
             }
+            // TODO: Delete break. Using only one file
+            break;
         }
         return names;
     }
 
-    static void startSubscriberStub(String topic, MQTT mqtt) {
+    static void startSubscriberStub(String clientId, String rfidTopic) throws Exception {
         // Debug purposes
-        AsyncSubscriber sub = new AsyncSubscriber(topic, DEFAULT_QOS, mqtt.callbackConnection());
-        sub.setOnRecvCallback(new Callbacks.EmptyCallback<byte[]>() {
-            @Override
-            public void onSuccess(byte[] payload) {
-                String msg = new String(payload);
-                System.out.println("[CLOUD] Received: " + msg);
-            }
+        IMqttAsyncClient client = new MqttAsyncClient(brokerHost, clientId, new MemoryPersistence());
+        AsyncSubscriber sub = new AsyncSubscriber(rfidTopic, DEFAULT_QOS, client);
+        sub.setCallback(payload -> {
+            String msg = new String(payload);
+            System.out.println("[CLOUD] Received: " + msg);
         });
 
         sub.init();
     }
 
-    static void startEdgeNode(String rfidTopic, String cloudTopic, MQTT mqtt) {
-        AsyncPublisher pub = new AsyncPublisher(cloudTopic, DEFAULT_QOS, mqtt.callbackConnection());
-        AsyncSubscriber sub = new AsyncSubscriber(rfidTopic, DEFAULT_QOS, mqtt.callbackConnection());
-        BulkBuilder<String> bb = new StringBulkBuilder("\n");
+    static void startEdgeNode(String clientId, String rfidTopic, String cloudTopic) throws Exception {
+        IMqttAsyncClient client = new MqttAsyncClient(brokerHost, clientId, new MemoryPersistence());
+        AsyncPublisher pub = new AsyncPublisher(cloudTopic, DEFAULT_QOS, client);
+        AsyncSubscriber sub = new AsyncSubscriber(rfidTopic, DEFAULT_QOS, client);
 
-        //TransmissionStrategy strategy = new ImmediateTransmissionStrategy();
+        // BulkBuilder to aggregate multiple payloads in one bulk
+        BulkBuilder<String> bb =
+                new StringBulkBuilder("\n");
+                //new JsonBulkBuilder(new DisposalSampleFactory(","));
+
+        // Strategy on how to handle a sample arriving at the edge node
         TransmissionStrategy strategy =
-                new PeriodicTransmissionStrategy(LocalDateTime.now(), 5, 100, bb);
+                //new ImmediateTransmissionStrategy();
+                new PeriodicTransmissionStrategy(LocalDateTime.now(), 5, DEFAULT_EDGE_BUFFER_SIZE, bb);
 
         new EdgeNode(pub, sub, strategy).start();
     }
 
-    static void startDataSource(String topic, MQTT mqtt, String filePath) {
-        AsyncChannel pub = new AsyncPublisher(topic, DEFAULT_QOS, mqtt.callbackConnection());
+    static void startDataSource(String clientId, String topic, String filePath) throws MqttException {
+        IMqttAsyncClient client = new MqttAsyncClient(brokerHost, clientId, new MemoryPersistence());
+        AsyncChannel pub = new AsyncPublisher(topic, DEFAULT_QOS, client);
         new DataSourceSimulator(pub, filePath, 100f).start();
     }
 }

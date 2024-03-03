@@ -1,10 +1,8 @@
 package it.unisannio.group8.channels;
 
-import org.fusesource.mqtt.client.Callback;
-
 public interface AsyncChannel {
-    void init();
-    void terminate();
-    void send(byte[] payload);
-    void setOnRecvCallback(Callback<byte[]> callback);
+    void init() throws Exception;
+    void terminate() throws Exception;
+    void send(byte[] payload) throws Exception;
+    void setCallback(Callback<byte[]> callback) throws Exception;
 }

@@ -1,7 +1,6 @@
 package it.unisannio.group8;
 
 import it.unisannio.group8.channels.AsyncChannel;
-import it.unisannio.group8.channels.Callbacks;
 import it.unisannio.group8.transmission.TransmissionStrategy;
 
 public class EdgeNode {
@@ -15,20 +14,17 @@ public class EdgeNode {
         this.strategy = strategy;
     }
 
-    public void start() {
+    public void start() throws Exception {
         // Edge node passes all the received messages to the strategy object
-        receiver.setOnRecvCallback(new Callbacks.EmptyCallback<byte[]>() {
-            @Override
-            public void onSuccess(byte[] payload) {
-                strategy.next(payload);
-            }
-        });
+        receiver.setCallback(payload -> strategy.next(payload));
 
         // Transmission strategy will send a byte array when needed
-        strategy.setCallback(new Callbacks.EmptyCallback<byte[]>() {
-            @Override
-            public void onSuccess(byte[] payload) {
+        strategy.setCallback(payload -> {
+            try {
                 sender.send(payload);
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
             }
         });
 

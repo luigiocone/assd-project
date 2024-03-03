@@ -62,17 +62,22 @@ public class DataSourceSimulator extends Thread {
         long millis = ChronoUnit.MILLIS.between(prev, curr);
         long scaled = (long) (millis / rate);
         if (scaled > 0) {
+            //System.out.println("[SOURCE] Next samples in " + scaled + " ms...");
             Thread.sleep(scaled);
         }
     }
 
-    private void send(String msg) {
+    private void send(String msg) throws Exception {
         sender.send(msg.getBytes());
         //System.out.println("[SOURCE] Published: " + msg);
     }
 
     private void end() {
-        sender.terminate();
-        System.out.println("[SOURCE] Terminated");
+        try {
+            sender.terminate();
+            System.out.println("[SOURCE] Terminated");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -1,6 +1,6 @@
 package it.unisannio.group8.transmission;
 
-import org.fusesource.mqtt.client.Callback;
+import it.unisannio.group8.channels.Callback;
 
 public interface TransmissionStrategy {
     public void init();

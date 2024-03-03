@@ -1,6 +1,7 @@
 package it.unisannio.group8.transmission;
 
-import org.fusesource.mqtt.client.Callback;
+
+import it.unisannio.group8.channels.Callback;
 
 public class ImmediateTransmissionStrategy implements TransmissionStrategy {
     private Callback<byte[]> callback;
@@ -11,7 +12,7 @@ public class ImmediateTransmissionStrategy implements TransmissionStrategy {
     @Override
     public void next(byte[] payload) {
         if (callback != null)
-            callback.onSuccess(payload);
+            callback.onEvent(payload);
     }
 
     @Override

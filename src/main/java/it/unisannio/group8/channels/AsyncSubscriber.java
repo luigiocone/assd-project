@@ -1,75 +1,56 @@
 package it.unisannio.group8.channels;
 
-import org.fusesource.hawtbuf.Buffer;
-import org.fusesource.hawtbuf.UTF8Buffer;
-import org.fusesource.mqtt.client.*;
+import org.eclipse.paho.client.mqttv3.*;
 
 public class AsyncSubscriber implements AsyncChannel {
     private final String topic;
-    private final QoS qos;
-    private final CallbackConnection connection;
-    private Callback<byte[]> onReceive = new Callbacks.EmptyCallback<>();
+    private final int qos;
+    private final IMqttAsyncClient client;
 
-    public AsyncSubscriber(String topic, QoS qos, CallbackConnection connection) {
+    public AsyncSubscriber(String topic, int qos, IMqttAsyncClient client) {
         this.topic = topic;
         this.qos = qos;
-        this.connection = connection;
+        this.client = client;
     }
 
-    public AsyncSubscriber(String topic, QoS qos, CallbackConnection connection, Callback<byte[]> onReceive) {
-        this(topic, qos, connection);
-        this.onReceive = onReceive;
+    public AsyncSubscriber(String topic, int qos, IMqttAsyncClient client, MqttCallback callback) {
+        this(topic, qos, client);
+        this.client.setCallback(callback);
     }
 
     @Override
-    public void init() {
-        // Set a connection listener to handle received messages and connection events
-        connection.listener(new ExtendedListener() {
-            @Override public void onConnected() { }
-            @Override public void onPublish(UTF8Buffer utf8Buffer, Buffer buffer, Runnable ack) { }
+    public void init() throws MqttException {
+        if (client.isConnected()) {
+            client.subscribe(topic, qos);
+            return;
+        }
 
-            @Override public void onFailure(Throwable throwable) {
-                onReceive.onFailure(throwable);
-            }
-
-            @Override
-            public void onDisconnected() {
-                System.err.println("Subscriber disconnected");
-            }
-
-            @Override
-            public void onPublish(UTF8Buffer utf8Buffer, Buffer buffer, Callback<Callback<Void>> callback) {
-                byte[] payload = buffer.toByteArray();
-                onReceive.onSuccess(payload);
-            }
-        });
-
-        // Connect to broker. Subscribe to passed topic if connection was successful
-        connection.connect(new Callbacks.EmptyCallback<Void>() {
-            @Override
-            public void onSuccess(Void unused) {
-                subscribe();
-            }
-        });
+        IMqttToken token = client.connect();
+        token.waitForCompletion();
+        client.subscribe(topic, qos);
     }
 
     @Override
     public void send(byte[] message) { }
 
     @Override
-    public void setOnRecvCallback(Callback<byte[]> callback) {
-        this.onReceive = callback;
+    public void setCallback(Callback<byte[]> callback) throws Exception {
+        client.setCallback(new MqttCallback() {
+            @Override public void connectionLost(Throwable cause) { }
+            @Override public void deliveryComplete(IMqttDeliveryToken token) { }
+            @Override
+            public void messageArrived(String topic, MqttMessage message) {
+                callback.onEvent(message.getPayload());
+            }
+        });
+    }
+
+    public void setCallback(MqttCallback callback) {
+        client.setCallback(callback);
     }
 
     @Override
-    public void terminate() {
-        connection.disconnect(Callbacks.SIGNAL_FAILURE);
-    }
-
-    private void subscribe() {
-        // Following callback doesn't make anything after a successful subscription
-        Callback<byte[]> cb = new Callbacks.EmptyCallback<>();
-        Topic[] topics = { new Topic(topic, qos) };
-        connection.subscribe(topics, cb);
+    public void terminate() throws Exception {
+        client.disconnect();
     }
 }

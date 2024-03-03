@@ -1,41 +1,54 @@
 package it.unisannio.group8.channels;
 
-import org.fusesource.mqtt.client.Callback;
-import org.fusesource.mqtt.client.CallbackConnection;
-import org.fusesource.mqtt.client.QoS;
+import org.eclipse.paho.client.mqttv3.*;
 
 public class AsyncPublisher implements AsyncChannel {
     private final String topic;
-    private final QoS qos;
-    private final CallbackConnection connection;
-    private Callback<Void> onSend = new Callbacks.EmptyCallback<>();
+    private final int qos;
+    private final IMqttAsyncClient client;
 
-    public AsyncPublisher(String topic, QoS qos, CallbackConnection connection) {
+    public AsyncPublisher(String topic, int qos, IMqttAsyncClient client) {
         this.topic = topic;
-        this.connection = connection;
         this.qos = qos;
+        this.client = client;
     }
 
-    public AsyncPublisher(String topic, QoS qos, CallbackConnection connection, Callback<Void> onSend) {
-        this(topic, qos, connection);
-        this.onSend = onSend;
-    }
-
-    @Override
-    public void init() {
-        connection.connect(Callbacks.SIGNAL_FAILURE);
+    public AsyncPublisher(String topic, int qos, IMqttAsyncClient client, MqttCallback callback) {
+        this(topic, qos, client);
+        this.client.setCallback(callback);
     }
 
     @Override
-    public void terminate() {
-        connection.disconnect(Callbacks.SIGNAL_FAILURE);
+    public void init() throws MqttException {
+        if (!client.isConnected()) {
+            IMqttToken token = client.connect();
+            token.waitForCompletion();
+        }
     }
 
     @Override
-    public void send(byte[] message) {
-        connection.publish(topic, message, qos, false, onSend);
+    public void send(byte[] payload) throws MqttException{
+        client.publish(topic, payload, qos, false);
     }
 
     @Override
-    public void setOnRecvCallback(Callback<byte[]> callback) { }
+    public void setCallback(Callback<byte[]> callback) throws Exception {
+        client.setCallback(new MqttCallback() {
+            @Override public void connectionLost(Throwable cause) { }
+            @Override public void messageArrived(String topic, MqttMessage message) { }
+            @Override
+            public void deliveryComplete(IMqttDeliveryToken token) {
+                callback.onEvent(null);
+            }
+        });
+    }
+
+    public void setCallback(MqttCallback callback) {
+        client.setCallback(callback);
+    }
+
+    @Override
+    public void terminate() throws Exception {
+        client.disconnect();
+    }
 }
