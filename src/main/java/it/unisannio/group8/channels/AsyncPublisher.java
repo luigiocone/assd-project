@@ -6,16 +6,18 @@ import org.fusesource.mqtt.client.QoS;
 
 public class AsyncPublisher implements AsyncChannel {
     private final String topic;
+    private final QoS qos;
     private final CallbackConnection connection;
     private Callback<Void> onSend = new Callbacks.EmptyCallback<>();
 
-    public AsyncPublisher(String topic, CallbackConnection connection) {
+    public AsyncPublisher(String topic, QoS qos, CallbackConnection connection) {
         this.topic = topic;
         this.connection = connection;
+        this.qos = qos;
     }
 
-    public AsyncPublisher(String topic, CallbackConnection connection, Callback<Void> onSend) {
-        this(topic, connection);
+    public AsyncPublisher(String topic, QoS qos, CallbackConnection connection, Callback<Void> onSend) {
+        this(topic, qos, connection);
         this.onSend = onSend;
     }
 
@@ -31,7 +33,7 @@ public class AsyncPublisher implements AsyncChannel {
 
     @Override
     public void send(byte[] message) {
-        connection.publish(topic, message, QoS.AT_MOST_ONCE, false, onSend);
+        connection.publish(topic, message, qos, false, onSend);
     }
 
     @Override

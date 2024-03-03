@@ -6,16 +6,18 @@ import org.fusesource.mqtt.client.*;
 
 public class AsyncSubscriber implements AsyncChannel {
     private final String topic;
+    private final QoS qos;
     private final CallbackConnection connection;
     private Callback<byte[]> onReceive = new Callbacks.EmptyCallback<>();
 
-    public AsyncSubscriber(String topic, CallbackConnection connection) {
+    public AsyncSubscriber(String topic, QoS qos, CallbackConnection connection) {
         this.topic = topic;
+        this.qos = qos;
         this.connection = connection;
     }
 
-    public AsyncSubscriber(String topic, CallbackConnection connection, Callback<byte[]> onReceive) {
-        this(topic, connection);
+    public AsyncSubscriber(String topic, QoS qos, CallbackConnection connection, Callback<byte[]> onReceive) {
+        this(topic, qos, connection);
         this.onReceive = onReceive;
     }
 
@@ -67,7 +69,7 @@ public class AsyncSubscriber implements AsyncChannel {
     private void subscribe() {
         // Following callback doesn't make anything after a successful subscription
         Callback<byte[]> cb = new Callbacks.EmptyCallback<>();
-        Topic[] topics = { new Topic(topic, QoS.AT_MOST_ONCE) };
+        Topic[] topics = { new Topic(topic, qos) };
         connection.subscribe(topics, cb);
     }
 }

@@ -5,6 +5,7 @@ import it.unisannio.group8.transmission.*;
 import it.unisannio.group8.transmission.bulk.BulkBuilder;
 import it.unisannio.group8.transmission.bulk.StringBulkBuilder;
 import org.fusesource.mqtt.client.MQTT;
+import org.fusesource.mqtt.client.QoS;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -44,7 +45,7 @@ public class Main {
 
     static void startSubscriberStub(String topic, MQTT mqtt) {
         // Debug purposes
-        AsyncSubscriber sub = new AsyncSubscriber(topic, mqtt.callbackConnection());
+        AsyncSubscriber sub = new AsyncSubscriber(topic, QoS.AT_LEAST_ONCE, mqtt.callbackConnection());
         sub.setOnRecvCallback(new Callbacks.EmptyCallback<byte[]>() {
             @Override
             public void onSuccess(byte[] payload) {
@@ -57,8 +58,8 @@ public class Main {
     }
 
     static void startEdgeNode(String rfidTopic, String cloudTopic, MQTT mqtt) {
-        AsyncPublisher pub = new AsyncPublisher(cloudTopic, mqtt.callbackConnection());
-        AsyncSubscriber sub = new AsyncSubscriber(rfidTopic, mqtt.callbackConnection());
+        AsyncPublisher pub = new AsyncPublisher(cloudTopic, QoS.AT_LEAST_ONCE, mqtt.callbackConnection());
+        AsyncSubscriber sub = new AsyncSubscriber(rfidTopic, QoS.AT_LEAST_ONCE, mqtt.callbackConnection());
         BulkBuilder<String> bb = new StringBulkBuilder("\n");
 
         //TransmissionStrategy strategy = new ImmediateTransmissionStrategy();
@@ -69,7 +70,7 @@ public class Main {
     }
 
     static void startDataSource(String topic, MQTT mqtt, String filePath) {
-        AsyncChannel pub = new AsyncPublisher(topic, mqtt.callbackConnection());
+        AsyncChannel pub = new AsyncPublisher(topic, QoS.AT_LEAST_ONCE, mqtt.callbackConnection());
         new DataSourceSimulator(pub, filePath, 100f).start();
     }
 }
