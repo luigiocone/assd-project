@@ -44,6 +44,8 @@ public class DataSourceSimulator extends Thread {
                 send(line);
                 line = br.readLine();
             }
+
+            System.out.println("[SOURCE] File read completely: " + samplesPath);
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
