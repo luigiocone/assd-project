@@ -32,7 +32,7 @@ public class PeriodicTransmissionStrategy implements TransmissionStrategy {
     @Override
     public void init() {
         long initialDelay = ChronoUnit.SECONDS.between(LocalDateTime.now(), startTime);
-        scheduler.scheduleAtFixedRate(new TransformAndWait(), initialDelay, periodInSeconds, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(new TransformAndUse(), initialDelay, periodInSeconds, TimeUnit.SECONDS);
     }
 
     @Override
@@ -65,13 +65,13 @@ public class PeriodicTransmissionStrategy implements TransmissionStrategy {
         return bulk.getBytes();
     }
 
-    class TransformAndWait implements Runnable {
+    class TransformAndUse implements Runnable {
         @Override
         public void run() {
             // Compute and send all the collected info
             byte[] payload = transformBuffer();
             if (payload == null) {
-                System.out.println("Buffer is empty");
+                // Empty buffer, nothing to send
                 return;
             }
             callback.onSuccess(payload);

@@ -20,8 +20,6 @@ public class EdgeNode {
         receiver.setOnRecvCallback(new Callbacks.EmptyCallback<byte[]>() {
             @Override
             public void onSuccess(byte[] payload) {
-                String msg = new String(payload);
-                System.out.println("[EDGE] Received: " + msg);
                 strategy.next(payload);
             }
         });

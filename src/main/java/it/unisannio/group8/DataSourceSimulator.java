@@ -59,15 +59,14 @@ public class DataSourceSimulator extends Thread {
     private void checkSleep(LocalDateTime prev, LocalDateTime curr) throws InterruptedException {
         long millis = ChronoUnit.MILLIS.between(prev, curr);
         long scaled = (long) (millis / rate);
-        if (scaled <= 0)
-            return;
-        System.out.println("[SOURCE] Waiting " + scaled + " ms...");
-        Thread.sleep(scaled);
+        if (scaled > 0) {
+            Thread.sleep(scaled);
+        }
     }
 
     private void send(String msg) {
         sender.send(msg.getBytes());
-        System.out.println("[SOURCE] Published: " + msg);
+        //System.out.println("[SOURCE] Published: " + msg);
     }
 
     private void end() {

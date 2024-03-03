@@ -30,7 +30,6 @@ public class Main {
         // MQTT properties
         MQTT mqtt = new MQTT();
         mqtt.setHost(brokerHost);
-        // mqtt.setKeepAlive((short) 60);
 
         // Start working threads (edge node first)
         startEdgeNode(rfidTopic, cloudTopic, mqtt);
