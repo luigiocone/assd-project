@@ -27,6 +27,8 @@ public class Main {
     final static int DEFAULT_QOS = 1; // AT_LEAST_ONCE
 
     static String brokerHost;
+    static String fieldSeparator;
+
 
     public static void main(String[] args) throws Exception {
         // Reading properties
@@ -35,8 +37,8 @@ public class Main {
         prop.load(br);
 
         brokerHost = prop.getProperty("host.broker");
+        fieldSeparator = prop.getProperty("fields.separator");
         final String samplesDir = prop.getProperty("samples.dir");
-        final String fieldSeparator = prop.getProperty("fields.separator");
         final String rfidTopic = prop.getProperty("rfid.topic");
         final String cloudTopic = prop.getProperty("cloud.topic");
 
@@ -86,9 +88,8 @@ public class Main {
         for (File f: listOfFiles) {
             if (f.isFile()) {
                 names.add(f.getName());
+                //break;   // Only one data source
             }
-            // TODO: Delete break. Using only one file
-            break;
         }
         return names;
     }
@@ -113,7 +114,7 @@ public class Main {
         // BulkBuilder to aggregate multiple payloads in one bulk
         BulkBuilder<String> bb =
                 new StringBulkBuilder("\n");
-                //new JsonBulkBuilder(new DisposalSampleFactory(","));
+                //new JsonBulkBuilder(new DisposalSampleFactory(fieldSeparator));
 
         // Strategy on how to handle a sample arriving at the edge node
         TransmissionStrategy strategy =
